@@ -1,0 +1,14 @@
+[project]
+name = "atem"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "empymod>=2.6.0",
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.9",
+    "nbstripout>=0.9.1",
+    "pandas>=3.0.2",
+    "simpeg>=0.25.2",
+]
