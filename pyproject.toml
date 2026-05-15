@@ -13,9 +13,9 @@ dependencies = [
   "jupyterlab",
   "libaarhusxyz",
   "matplotlib",
-  "nbstripout",
   "numba",
   "pandas",
+  "rich>=15.0.0",
   "scikit-learn>=1.8.0",
   "simpeg",
 ]
