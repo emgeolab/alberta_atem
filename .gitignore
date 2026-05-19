@@ -12,7 +12,10 @@ wheels/
 
 # Directories
 archives/
-data/
+data/**
 inv_tdem_1d_files/
 reports/
 logs/
+
+# Exception rules
+!data/*.json
