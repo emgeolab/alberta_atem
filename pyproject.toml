@@ -3,19 +3,27 @@ name = "atem"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = "<3.12,>=3.10"
 dependencies = [
   "cython",
   "dill",
-  "empymod",
-  "ipykernel",
+  "geopandas>=1.1.3",
   "ipywidgets",
   "jupyterlab",
+  "lasio>=0.32",
   "libaarhusxyz",
   "matplotlib",
   "numba",
+  "numpy<2.0",
+  "openpyxl",
   "pandas",
   "rich>=15.0.0",
-  "scikit-learn>=1.8.0",
-  "simpeg",
+  "scikit-learn",
+  "simpeg"
 ]
+
+[project.optional-dependencies]
+solver = ["pydiso"]
+
+[tool.uv.sources]
+simpeg = { git = "https://github.com/simpeg/simpeg.git", rev = "em1d_stitched_v022" }
