@@ -1,5 +1,10 @@
-export OMP_NUM_THREADS=1
-export MKL_NUM_THREADS=1
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate em
-python run_inversion.py 100 0 10 10
+#!/bin/bash
+#SBATCH --mem=128G
+#SBATCH --nodes=1
+#SBATCH --time=08:00:00
+#SBATCH --partition=skylake
+#SBATCH --cpus-per-task=40
+#SBATCH --account=def-sgkang09
+
+module load intel-one/2025.3
+uv run main.py
