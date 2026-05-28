@@ -17,6 +17,7 @@ data/**
 inv_tdem_1d_files/
 reports/
 logs/
+todo/
 
 # Exception rules
 !data/*.json
