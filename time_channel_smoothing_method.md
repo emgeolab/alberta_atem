@@ -90,6 +90,7 @@ k_nearest_points = 50
 idw_epsilon = 1
 idw_power_early = 1.5
 idw_power_late = 2.0
+min_effective_neighbors = 5.0
 ```
 
 The IDW power varies by time channel:
@@ -121,11 +122,21 @@ The smoothed data are computed as a weighted average:
 smoothed_data = sum(total_weight * neighbor_data) / sum(total_weight)
 ```
 
+The notebook also checks whether the weighted average is controlled by enough meaningful neighbors:
+
+```python
+effective_neighbor_count = sum(total_weight)**2 / sum(total_weight**2)
+```
+
+If `effective_neighbor_count` is smaller than `min_effective_neighbors`, the original data value is retained instead of using the smoothed value. This reduces unstable smoothing near map boundaries or data gaps where only a few neighbors dominate the result.
+
 The smoothing is evaluated in chunks to reduce memory use:
 
 ```python
 smoothing_chunk_size = 50_000
 ```
+
+The chunking only limits memory use. The KDTree is built from the full binned dataset, so each chunk still searches neighbors from the full survey area.
 
 ## Line-Level Scores
 
@@ -197,21 +208,24 @@ This compares original and smoothed data along a selected flight line as a funct
 
 It can show either all channels or one selected `zoff30` channel.
 
-### Line-Level RMS Map
+The same plot also overlays normalized `bheight` and `pwrline` values on a twin y-axis. These monitor values are min-max normalized within the selected line, so their trends can be compared with the original-smoothed data difference even though their physical units are different.
 
-Each sounding is colored by the RMS score of its flight line.
+### Observed Time-Channel Map And Inversion Depth Slice
 
-The top-N lines by `line_l2_rms` are highlighted.
+The final diagnostic view shows two panels side by side:
 
-This is used to check whether line effects visible in maps and inversion sections are also picked by the quantitative score.
+- selected observed time-channel map
+- selected inversion resistivity depth slice
 
-### Inversion Depth Slice Comparison
+The high-score lines are selected from `line_l2_rms`.
 
-The line-level RMS map is shown next to a resistivity depth slice from the saved inversion result.
+The observed time-channel map colors the data by the selected `zoff30` channel. The top-N high-score lines are plotted with larger markers on the same color scale. This checks whether the numerically picked lines also show line effects in the observed time-domain data.
 
-The top-N high-score lines are overlaid on the resistivity map using the resistivity value at the selected depth.
+The inversion panel shows a resistivity depth slice from the saved inversion result. The top-N high-score lines are overlaid on the resistivity map using the resistivity value at the selected depth.
 
-This helps compare quantitative line-effect picking with visible line artifacts in inversion products.
+This checks whether the same high-score lines are connected to line-like artifacts in the inversion product.
+
+The inversion resistivity layers are cached after loading the inversion result, so changing the depth or iteration slider does not repeatedly recompute the full resistivity model.
 
 ## Interpretation
 
