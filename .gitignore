@@ -21,3 +21,4 @@ todo/
 
 # Exception rules
 !data/*.json
+!data/*.out

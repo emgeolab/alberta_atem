@@ -1,10 +1,11 @@
-import json
 import dill
 import scipy
 import numpy as np
 import pandas as pd
 from rich import print
 from types import SimpleNamespace
+import argparse
+import json
 
 # SimPEG Modules
 import simpeg
@@ -23,100 +24,33 @@ from simpeg.electromagnetics.utils.em1d_utils import set_mesh_1d
 from discretize import SimplexMesh
 from simpeg.regularization.laterally_constrained import LaterallyConstrained
 
+from tools import binning
 
-def main(miter: int):
+
+def main(miter: int, area: str):
+    # Load worst
+    with open(f"./data/{area}_worst_50_smoothed_rmse.json", "r") as f:
+        worst_line = [i for i in json.load(f)[0].values()]
+    f.close()
 
     # Decide the channels to be used for inversion
     istart_channel: int = 3
     iend_channel: int = 25
 
-    # Load the configuration file
-    conf = json.load(open("./data/atem.json"))
-    times = np.asarray(conf["channels"])[istart_channel:iend_channel] * 1e-6
-    n_turns = conf["n_turns"]
-    with open("./data/worst_50_smoothed_rmse.json", "r") as f:
-        worst_line = [i for i in json.load(f)[0].values()]
-    f.close()
-
-    # Decide data path and the header of the data to be used for inversion
-    area: str = "NE"
-    path: str = f"./data/11-024_Alberta_{area}.csv"
-    dheader: list = [f"zoff30[{i}]" for i in range(istart_channel, iend_channel)]
-    picker: list = [
-        "Line",
-        "bheight",
-        "TranPeak",
-        "x_wgs84",
-        "y_wgs84",
-        "flight",
-        "pwrline",
-        "dtm",
-    ] + dheader
-
-    # Load data
-    raws = pd.read_csv(path)[picker]
-
-    # Unit conversion and normalization
-    normalizer = (-1e-9) / (raws["TranPeak"].values * n_turns).reshape(-1, 1)
-    raws[[f"zoff30[{i}]" for i in range(istart_channel, iend_channel)]] = (
-        raws[[f"zoff30[{i}]" for i in range(istart_channel, iend_channel)]] * normalizer
-    )
-
-    # Extract Line number
-    line_no = list(raws["Line"].unique())
-    istart: int = 0
-    iend: int = None
-    # iend:int = 1
-    # index = raws["Line"] == line_no[istart]
-
-    # Reomove none data.
-    raws.dropna(
-        subset=["y_wgs84"], inplace=True
-    )  # Remove rows with NaN values in y_wgs84
-    raws.fillna(
-        1e-20, inplace=True
-    )  # Replace remaining NaN values with a small number (1e-20) to avoid issues in calculations
-
     # Data binning
     dx = 50.0
-    values = []
-    values_std = []
-    soundings = []
 
-    print("==========Data Binning Start==========")
-    for i_line, line in enumerate(line_no[istart:iend]):
-        df_line = raws[raws["Line"] == line]
+    print("01. Data Binning\n")
 
-        # Calculate distance along the "Line"
-        xy = df_line[["x_wgs84", "y_wgs84"]].to_numpy()
-        distance = np.sqrt(((xy - xy[0, :]) ** 2).sum(axis=1))
-        # print(f"Number of NaN values in distance: {np.isnan(distance).sum()}")
-        max_distance = distance.max()
+    tmp: dict = binning(dx=dx, area=area)
+    times = tmp["times"]
+    values = tmp["values"]
+    values_std = tmp["values_std"]
+    soundings = tmp["soundings"]
+    n_turns = tmp["n_turns"]
+    dheader = tmp["dheader"]
+    picker = tmp["picker"]
 
-        # Determine the no. of soundings per bin.
-        if max_distance % dx == 0:
-            n_sounding = int(max_distance / dx)
-        else:
-            n_sounding = int(np.round(max_distance / dx) + 1)
-
-        # Create bins and assign each sounding to a bin
-        bins = np.arange(n_sounding) * dx
-        df_line.insert(0, "distance", distance)
-        # Bin distances
-        df_line["bin"] = pd.cut(df_line["distance"], bins=bins)
-        # Compute statistics per bin
-        binned = df_line.groupby("bin", observed=False)[
-            ["distance"] + picker[1:]
-        ].mean()
-        binned.insert(0, "Line", line)
-        binned_std = df_line.groupby("bin", observed=False)[["bheight"] + dheader].std()
-        values.append(binned.values)
-        values_std.append(binned_std.values)
-        soundings.append(n_sounding)
-
-    print("==========Data Binning End==========")
-
-    del raws
     df_data_binned = pd.DataFrame(
         data=np.vstack(values), columns=["Line", "distance"] + picker[1:]
     )
@@ -124,7 +58,11 @@ def main(miter: int):
         data=np.vstack(values_std), columns=["bheight"] + dheader
     )
 
-    print(f"{len(soundings)=}")
+    for col in df_data_binned.columns:
+        if col != "Line":
+            df_data_binned[col] = pd.to_numeric(df_data_binned[col])
+
+    print(f"\tBinned soundings: {len(df_data_binned):,}\n")
 
     # Criteria for bad data (uncertainty correction)
     data_ = df_data_binned[dheader].values.astype(float)
@@ -138,7 +76,7 @@ def main(miter: int):
     criteria_uncertainty: float = (
         0.05  # Select how much uncertainty will be used for normalization.
     )
-    bad_line_uncertainty: float = 0.10
+    bad_line_uncertainty: float = 0.30
 
     channel_id = np.tile(np.arange(data_.shape[1]), (data_.shape[0], 1))
     cut_off = (data_rerr > criteria_rerr) * (channel_id >= 0)
@@ -162,6 +100,7 @@ def main(miter: int):
     )  # Filter out bad data by setting their standard deviation to infinity
     dobs_std += np.repeat(floors.values, iend_channel - istart_channel)  # Add floors
 
+    print("02. Discretization\n")
     # Set topography and transmitter heights
     topography = df_data_binned[["x_wgs84", "y_wgs84", "dtm"]].values
     source_heights = df_data_binned["bheight"].values
@@ -207,6 +146,8 @@ def main(miter: int):
     receiver_orientation = "z"
     source_orientation = "z"
 
+    print("\n03. Set survey\n")
+    # Survey
     for i_sounding in range(n_sounding):
         # waveform = tdem.sources.PiecewiseLinearWaveform(inp.time_input_currents, inp.input_currents)
         source_location = source_locations[i_sounding, :]
@@ -235,13 +176,16 @@ def main(miter: int):
             )
         )
 
-        survey = tdem.Survey(source_list)
+    survey = tdem.Survey(source_list)
+
+    # Layer
     hz = np.r_[inp.thickness, inp.thickness[-1]]
 
     n_layer = len(hz)
     nP = n_sounding * n_layer
     sigma_map = maps.ExpMap(nP=nP)
 
+    # Simulation
     simulation = tdem.Simulation1DLayeredStitched(
         survey=survey,
         thicknesses=inp.thickness,
@@ -257,10 +201,12 @@ def main(miter: int):
     data_object = simpeg.data.Data(survey, dobs=dobs, standard_deviation=inp.data_std)
     dmis = simpeg.data_misfit.L2DataMisfit(simulation=simulation, data=data_object)
 
+    print("04. Start Inversion\n")
+
     # nData
     inds_active_dobs = dobs.shape[0] - cut_off.sum()
     print(
-        f"Percentage of the active data = {inds_active_dobs:,}/{len(dobs):,}={inds_active_dobs.sum() / len(dobs) * 100:,.0f}%"
+        f"  Percentage of the active data = {inds_active_dobs:,}/{len(dobs):,}={inds_active_dobs.sum() / len(dobs) * 100:,.0f}%"
     )
 
     tri = scipy.spatial.Delaunay(inp.topography[:, :2])
@@ -268,9 +214,10 @@ def main(miter: int):
     mesh_vertical = set_mesh_1d(hz)
     mesh_reg = [mesh_radial, mesh_vertical]
 
+    # INFO: `indActiveEdges` decides the maximum distance to apply regularization along the horizontal direction. Since the line spacing is 750 m, if we apply 500 m for maximum distance, the regularization in direction to tie line wouldn't be applied.
     inds, indActiveEdges = get_active_edge_indices_with_distance(
-        mesh_radial, mesh_vertical, maximum_distance=500.0
-    )
+        mesh_radial, mesh_vertical, maximum_distance=1500.0
+    )  # TODO: Try to adjust maximum_distance.
 
     reg = LaterallyConstrained(
         mesh_reg,
@@ -283,7 +230,9 @@ def main(miter: int):
 
     opt = simpeg.optimization.ProjectedGNCG(maxIter=miter, maxIterCG=50)
     invProb = simpeg.inverse_problem.BaseInvProblem(dmis, reg, opt)
-    beta = simpeg.directives.BetaSchedule(coolingFactor=2, coolingRate=1)
+    beta = simpeg.directives.BetaSchedule(
+        coolingFactor=2, coolingRate=1
+    )  # TODO: Adjust cooling rate
     betaest = simpeg.directives.BetaEstimate_ByEig(beta0_ratio=1.0)
     # target = simpeg.directives.TargetMisfit(chifact=1)
     precond = simpeg.directives.UpdatePreconditioner()
@@ -304,10 +253,17 @@ def main(miter: int):
     opt.LSshorten = 0.5
     opt.remember("xc")
     m0 = np.ones(nP) * np.log(1.0 / 10.0)
+
+    # Run inversion
     inv.run(m0)
 
-    name: str = "./data/inv_results_atem_full.pik"
-    dill.dump(save_model_dict.outDict, open(f"{name}", "wb"))
+    print("05. Save Results\n")
+    # Save results
+    name: str = f"./data/{area}_inv_results_atem_full.pik"
+    dill.dump(save_model_dict.outDict, open(name, "wb"))
+
+    with open("./data/{area}_soundings.json", "w") as f:
+        json.dump(soundings, f)
 
 
 def get_active_edge_indices_with_distance(
@@ -321,4 +277,18 @@ def get_active_edge_indices_with_distance(
 
 
 if __name__ == "__main__":
-    main(miter=20)
+    # 1. Generate parser object
+    parser = argparse.ArgumentParser(description="Parser Name")
+    # 2. Add arguments
+    parser.add_argument("-i", "--iter", type=int, default=20, help="Max Iteration")
+    parser.add_argument("-a", "--area", type=str, help="Survey area", required=True)
+    # 3. Parse arguments
+    args = parser.parse_args()
+    # 4. Execution
+    print(f"{args.iter=}\n{args.area=}\n")
+    main(miter=args.iter, area=args.area)
+
+# TODO: Considering criteria when you will stop iteration before kicking out line-by-line artifacts in resistivity domain. This is a second process. We are considering Two-step
+# TODO: The No. of binning > group( ... observed=False or True). Try to think about proper binning interval.
+## INFO: "observed=False" can make "NaN" value.
+## INFO: When we decide "n_sounding", np.round > np.floor
