@@ -1,0 +1,61 @@
+args.iter=20
+args.area='NE'
+64
+
+01. Data Binning
+
+        Binned soundings: 134,179
+
+02. Discretization
+
+>> Depth from the surface to the base of the bottom layer is 306.3m
+
+03. Set survey
+
+04. Start Inversion
+
+  Percentage of the active data = 2,080,562/2,951,938=70%
+
+Running inversion with SimPEG v0.22.2.dev14+g7c7f1dc80
+simpeg.InvProblem will set Regularization.reference_model to m0.
+simpeg.InvProblem will set Regularization.reference_model to m0.
+simpeg.InvProblem will set Regularization.reference_model to m0.
+
+                        simpeg.InvProblem is setting bfgsH0 to the inverse of the eval2Deriv.
+                        ***Done using same Solver, and solver_opts as the Simulation1DLayeredStitched problem***
+                        
+model has any nan: 0
+=============================== Projected GNCG ===============================
+  #     beta     phi_d     phi_m       f      |proj(x-g)-x|  LS    Comment   
+-----------------------------------------------------------------------------
+x0 has any nan: 0
+   0  2.23e+01  3.18e+08  0.00e+00  3.18e+08    2.21e+06      0              
+   1  1.11e+01  2.84e+07  1.37e+05  2.99e+07    3.64e+05      0              
+   2  5.57e+00  3.82e+06  2.93e+05  5.45e+06    5.26e+04      0   Skip BFGS  
+   3  2.79e+00  2.36e+06  4.03e+05  3.48e+06    3.13e+04      0   Skip BFGS  
+   4  1.39e+00  1.98e+06  4.59e+05  2.62e+06    2.63e+04      1              
+   5  6.96e-01  1.24e+06  7.39e+05  1.76e+06    1.21e+04      0              
+   6  3.48e-01  9.94e+05  9.72e+05  1.33e+06    7.02e+03      0   Skip BFGS  
+   7  1.74e-01  8.13e+05  1.33e+06  1.04e+06    5.07e+03      0   Skip BFGS  
+   8  8.70e-02  6.84e+05  1.83e+06  8.43e+05    5.05e+03      0   Skip BFGS  
+   9  4.35e-02  5.93e+05  2.53e+06  7.03e+05    5.87e+03      0   Skip BFGS  
+  10  2.18e-02  5.47e+05  3.03e+06  6.13e+05    4.16e+03      0              
+  11  1.09e-02  5.16e+05  3.60e+06  5.55e+05    5.87e+03      0              
+  12  5.44e-03  4.91e+05  4.17e+06  5.14e+05    3.14e+03      0              
+  13  2.72e-03  4.73e+05  4.86e+06  4.86e+05    5.70e+03      0              
+  14  1.36e-03  4.56e+05  5.38e+06  4.63e+05    2.31e+03      0              
+  15  6.80e-04  4.42e+05  6.23e+06  4.46e+05    4.22e+03      0              
+  16  3.40e-04  4.29e+05  6.73e+06  4.31e+05    2.45e+03      0              
+  17  1.70e-04  4.19e+05  7.60e+06  4.20e+05    2.85e+03      0              
+  18  8.50e-05  4.09e+05  8.10e+06  4.10e+05    2.03e+03      0              
+  19  4.25e-05  3.99e+05  9.28e+06  4.00e+05    3.46e+03      0              
+  20  2.13e-05  3.89e+05  9.93e+06  3.90e+05    2.25e+03      0              
+------------------------- STOP! -------------------------
+1 : |fc-fOld| = 1.0147e+04 <= tolF*(1+|f0|) = 3.1790e+07
+1 : |xc-x_last| = 2.1603e+01 <= tolX*(1+|x0|) = 3.9571e+02
+0 : |proj(x-g)-x|    = 2.2514e+03 <= tolG          = 1.0000e-01
+0 : |proj(x-g)-x|    = 2.2514e+03 <= 1e3*eps       = 1.0000e-02
+1 : maxIter   =      20    <= iter          =     20
+------------------------- DONE! -------------------------
+05. Save Results
+

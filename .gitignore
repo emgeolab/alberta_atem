@@ -14,10 +14,13 @@ wheels/
 # Directories
 archives/
 data/**
-inv_tdem_1d_files/
-reports/
 logs/
 todo/
+ideas/
+meetings/
+references/
+inv_tdem_1d_files/
 
 # Exception rules
 !data/*.json
+!data/*.out
