@@ -24,14 +24,25 @@ from simpeg.electromagnetics.utils.em1d_utils import set_mesh_1d
 from discretize import SimplexMesh
 from simpeg.regularization.laterally_constrained import LaterallyConstrained
 
-from tools import binning
+import tools
 
 
-def main(miter: int, area: str):
-    # Load worst
-    with open(f"./data/{area}_worst_50_smoothed_rmse.json", "r") as f:
-        worst_line = [i for i in json.load(f)[0].values()]
-    f.close()
+def main(miter: int, areas: list, output_prefix: str, ncpu: int):
+    # Load worst files from all areas and merge them
+    worst_line = []
+    for area in areas:
+        worst_path = f"./data/{area}_worst_50_smoothed_rmse.json"
+        try:
+            with open(worst_path, "r") as f:
+                area_worst = [i for i in json.load(f)[0].values()]
+                worst_line.extend(area_worst)
+            print(f"Loaded {len(area_worst)} worst lines from {worst_path}")
+        except Exception as e:
+            print(f"Warning: could not load worst line file '{worst_path}': {e}")
+
+    # Deduplicate worst_line
+    worst_line = list(set(worst_line))
+    print(f"Total unique worst lines merged: {len(worst_line)}")
 
     # Decide the channels to be used for inversion
     istart_channel: int = 3
@@ -42,20 +53,34 @@ def main(miter: int, area: str):
 
     print("01. Data Binning\n")
 
-    tmp: dict = binning(dx=dx, area=area)
-    times = tmp["times"]
-    values = tmp["values"]
-    values_std = tmp["values_std"]
-    soundings = tmp["soundings"]
-    n_turns = tmp["n_turns"]
-    dheader = tmp["dheader"]
-    picker = tmp["picker"]
+    all_values = []
+    all_values_std = []
+    all_soundings = []
+    
+    times = None
+    n_turns = None
+    dheader = None
+    picker = None
+
+    for area in areas:
+        print(f"Binning area: {area}...")
+        tmp: dict = tools.binning_normal(dx=dx, area=area)
+        
+        if times is None:
+            times = tmp["times"]
+            n_turns = tmp["n_turns"]
+            dheader = tmp["dheader"]
+            picker = tmp["picker"]
+            
+        all_values.extend(tmp["values"])
+        all_values_std.extend(tmp["values_std"])
+        all_soundings.extend(tmp["soundings"])
 
     df_data_binned = pd.DataFrame(
-        data=np.vstack(values), columns=["Line", "distance"] + picker[1:]
+        data=np.vstack(all_values), columns=["Line", "distance"] + picker[1:]
     )
     df_data_std_binned = pd.DataFrame(
-        data=np.vstack(values_std), columns=["bheight"] + dheader
+        data=np.vstack(all_values_std), columns=["bheight"] + dheader
     )
 
     for col in df_data_binned.columns:
@@ -72,9 +97,9 @@ def main(miter: int, area: str):
     bad_line_id = df_data_binned["Line"].isin(worst_line).values
     bad_line_mask = np.repeat(bad_line_id[:, None], data_.shape[1], axis=1)
 
-    criteria_rerr: float = 0.03  # Select binned data having highg std.
+    criteria_rerr: float = 0.03  # Select binned data having high std.
     criteria_uncertainty: float = (
-        0.05  # Select how much uncertainty will be used for normalization.
+        0.05  # Select how much uncertainty will be used for bad line.
     )
     bad_line_uncertainty: float = 0.30
 
@@ -192,12 +217,12 @@ def main(miter: int, area: str):
         sigmaMap=sigma_map,
         topo=inp.topography,
         parallel=True,
-        n_cpu=10,
+        n_cpu=ncpu,
         verbose=False,
         solver=Solver,
     )
 
-    # Create data ojbect
+    # Create data object
     data_object = simpeg.data.Data(survey, dobs=dobs, standard_deviation=inp.data_std)
     dmis = simpeg.data_misfit.L2DataMisfit(simulation=simulation, data=data_object)
 
@@ -259,11 +284,11 @@ def main(miter: int, area: str):
 
     print("05. Save Results\n")
     # Save results
-    name: str = f"./data/{area}_inv_results_atem_full.pik"
+    name: str = f"./data/{output_prefix}_inv_results_atem_full.pik"
     dill.dump(save_model_dict.outDict, open(name, "wb"))
 
-    with open("./data/{area}_soundings.json", "w") as f:
-        json.dump(soundings, f)
+    with open(f"./data/{output_prefix}_soundings.json", "w") as f:
+        json.dump(all_soundings, f)
 
 
 def get_active_edge_indices_with_distance(
@@ -278,17 +303,30 @@ def get_active_edge_indices_with_distance(
 
 if __name__ == "__main__":
     # 1. Generate parser object
-    parser = argparse.ArgumentParser(description="Parser Name")
+    parser = argparse.ArgumentParser(description="Multi-Area Merged ATEM Inversion")
     # 2. Add arguments
     parser.add_argument("-i", "--iter", type=int, default=20, help="Max Iteration")
-    parser.add_argument("-a", "--area", type=str, help="Survey area", required=True)
+    parser.add_argument(
+        "-a",
+        "--areas",
+        type=str,
+        default="NW,NE,SE,SW,tielines",
+        help="Comma-separated survey areas to merge and invert together",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default="merged",
+        help="Prefix to use for saved output files",
+    )
+    parser.add_argument("-n", "--ncpu", type=int, help="No. of cpu", required=True)
     # 3. Parse arguments
     args = parser.parse_args()
+    
+    # Process comma-separated areas list
+    area_list = [a.strip() for a in args.areas.split(",")]
+    
     # 4. Execution
-    print(f"{args.iter=}\n{args.area=}\n")
-    main(miter=args.iter, area=args.area)
-
-# TODO: Considering criteria when you will stop iteration before kicking out line-by-line artifacts in resistivity domain. This is a second process. We are considering Two-step
-# TODO: The No. of binning > group( ... observed=False or True). Try to think about proper binning interval.
-## INFO: "observed=False" can make "NaN" value.
-## INFO: When we decide "n_sounding", np.round > np.floor
+    print(f"{args.iter=}\n{area_list=}\n{args.output=}\n{args.ncpu=}\n")
+    main(miter=args.iter, areas=area_list, output_prefix=args.output, ncpu=args.ncpu)

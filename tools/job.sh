@@ -7,4 +7,5 @@
 #SBATCH --output=./slurm/slurm-%j.out
 
 module load intel-one/2025.3
-uv run ./tools/main.py -a "SE" -n 64
+# Run multi-area inversion orchestrator (runs NW, NE, SE, SW, and tielines sequentially)
+uv run ./tools/main_merged.py -n 64
