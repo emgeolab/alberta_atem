@@ -12,11 +12,10 @@ wheels/
 .DS_Store
 
 # Directories
-archives/
+bkup/
 data/**
 logs/
-todo/
-ideas/
+notes/
 meetings/
 references/
 inv_tdem_1d_files/

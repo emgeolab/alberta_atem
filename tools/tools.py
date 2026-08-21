@@ -17,7 +17,7 @@ def binning(
     n_turns = conf["n_turns"]
     times = np.asarray(conf["channels"])[istart_channel:iend_channel] * 1e-6
 
-    path: str = f"./data/11-024_Alberta_{area}.csv"
+    path: str = f"./data/obs/11-024_Alberta_{area}.csv"
     dheader: list = [f"zoff30[{i}]" for i in range(istart_channel, iend_channel)]
     picker: list = [
         "Line",
@@ -165,7 +165,7 @@ def binning_normal(
     n_turns = conf["n_turns"]
     times = np.asarray(conf["channels"])[istart_channel:iend_channel] * 1e-6
 
-    path: str = f"./data/11-024_Alberta_{area}.csv"
+    path: str = f"./data/obs/11-024_Alberta_{area}.csv"
     dheader: list = [f"zoff30[{i}]" for i in range(istart_channel, iend_channel)]
     picker: list = [
         "Line",
