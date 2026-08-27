@@ -27,7 +27,17 @@ from simpeg.regularization.laterally_constrained import LaterallyConstrained
 import tools
 
 
-def main(miter: int, areas: list, output_prefix: str, ncpu: int):
+def main(
+    miter: int,
+    areas: list,
+    output_prefix: str,
+    ncpu: int,
+    alpha_r: float,
+    alpha_z: float,
+):
+    print(f"ncpu:{ncpu}")
+    print(f"alpha_r:{alpha_r}")
+    print(f"alpha_z:{alpha_z}")
     # Load worst files from all areas and merge them
     # worst_line = []
     # for area in areas:
@@ -245,18 +255,17 @@ def main(miter: int, areas: list, output_prefix: str, ncpu: int):
         mesh_radial, mesh_vertical, maximum_distance=1500.0
     )  # TODO: Try to adjust maximum_distance.
 
-    # First: alphas = 0.1
     # Sharp inversion: zero-nrom (Counts of non-zero misfits)
-    # Indicating sharp shape
     reg = LaterallyConstrained(
         mesh_reg,
         mapping=simpeg.maps.IdentityMap(nP=nP),
-        alpha_s=0.1,
-        alpha_r=1.0,
-        alpha_z=1.0 / 2.0,
+        alpha_s=0.0,
+        alpha_r=alpha_r,
+        alpha_z=alpha_z,
         active_edges=indActiveEdges,
         norms=np.array([2.0, 0.0, 0.0]),
     )
+    reg.gradient_type = "components"
 
     opt = simpeg.optimization.ProjectedGNCG(maxIter=miter, maxIterCG=50)
     invProb = simpeg.inverse_problem.BaseInvProblem(dmis, reg, opt)
@@ -293,17 +302,19 @@ def main(miter: int, areas: list, output_prefix: str, ncpu: int):
     invProb.counter = opt.counter = simpeg.utils.Counter()
     opt.LSshorten = 0.5
     opt.remember("xc")
-    m0 = np.ones(nP) * np.log(1.0 / 10.0)
+    res0 = 10.0
+    m0 = np.ones(nP) * np.log(1.0 / res0)
+    print(f"{res0=}")
 
     # Run inversion
     inv.run(m0)
 
     print("05. Save Results\n")
     # Save results
-    name: str = f"./data/{output_prefix}_inv_results_atem_full.pik"
+    name: str = f"./outputs/{output_prefix}_inv_results_atem_full.pik"
     dill.dump(save_model_dict.outDict, open(name, "wb"))
 
-    with open(f"./data/{output_prefix}_soundings.json", "w") as f:
+    with open(f"./outputs/{output_prefix}_soundings.json", "w") as f:
         json.dump(all_soundings, f)
 
 
@@ -321,7 +332,7 @@ if __name__ == "__main__":
     # 1. Generate parser object
     parser = argparse.ArgumentParser(description="Multi-Area Merged ATEM Inversion")
     # 2. Add arguments
-    parser.add_argument("-i", "--iter", type=int, default=20, help="Max Iteration")
+    parser.add_argument("-i", "--iter", type=int, default=40, help="Max Iteration")
     parser.add_argument(
         "-a",
         "--areas",
@@ -337,6 +348,12 @@ if __name__ == "__main__":
         help="Prefix to use for saved output files",
     )
     parser.add_argument("-n", "--ncpu", type=int, help="No. of cpu", required=True)
+    parser.add_argument(
+        "-r", "--alphar", type=float, help="Horizontal constraint", required=True
+    )
+    parser.add_argument(
+        "-z", "--alphaz", type=float, help="Vertical constraint", required=True
+    )
     # 3. Parse arguments
     args = parser.parse_args()
 
@@ -345,4 +362,11 @@ if __name__ == "__main__":
 
     # 4. Execution
     print(f"{args.iter=}\n{area_list=}\n{args.output=}\n{args.ncpu=}\n")
-    main(miter=args.iter, areas=area_list, output_prefix=args.output, ncpu=args.ncpu)
+    main(
+        miter=args.iter,
+        areas=area_list,
+        output_prefix=args.output,
+        ncpu=args.ncpu,
+        alpha_r=args.alphar,
+        alpha_z=args.alphaz,
+    )

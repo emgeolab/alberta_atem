@@ -307,10 +307,10 @@ def main(
 
     print("05. Save Results\n")
     # Save results
-    name: str = f"./data/{output_prefix}_inv_results_atem_full.pik"
+    name: str = f"./outputs/{output_prefix}_inv_results_atem_full.pik"
     dill.dump(save_model_dict.outDict, open(name, "wb"))
 
-    with open(f"./data/{output_prefix}_soundings.json", "w") as f:
+    with open(f"./outputs/{output_prefix}_soundings.json", "w") as f:
         json.dump(all_soundings, f)
 
 
