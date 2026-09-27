@@ -1,15 +1,7 @@
 import json
-import os
-import sys
 
 import numpy as np
 import pandas as pd
-
-if os.path.basename(os.getcwd()) == "notebooks":
-    print(os.getcwd())
-    os.chdir("..")
-print(f"Current working directory is changed to: {os.getcwd()}")
-sys.path.append("tools")
 
 
 def binning(
@@ -25,7 +17,6 @@ def binning(
     conf = json.load(open("./data/atem.json"))
     n_turns = conf["n_turns"]
     times = np.asarray(conf["channels"])[istart_channel:iend_channel] * 1e-6
-
 
     path: str = f"./data/obs/11-024_Alberta_{area}.csv"
     dheader: list = [f"zoff30[{i}]" for i in range(istart_channel, iend_channel)]

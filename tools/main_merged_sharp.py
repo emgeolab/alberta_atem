@@ -1,17 +1,18 @@
-import dill
-import scipy
-import numpy as np
-import pandas as pd
-from rich import print
-from types import SimpleNamespace
 import argparse
 import json
+from types import SimpleNamespace
+
+import dill
+import numpy as np
+import pandas as pd
+import scipy
 
 # SimPEG Modules
 import simpeg
-from simpeg.electromagnetics.utils.em1d_utils import get_vertical_discretization
-from simpeg import maps
 import simpeg.electromagnetics.time_domain as tdem
+from rich import print
+from simpeg import maps
+from simpeg.electromagnetics.utils.em1d_utils import get_vertical_discretization
 
 try:
     from pymatsolver import PardisoSolver as Solver
@@ -20,8 +21,8 @@ except NameError:
 
     print("PardisoSolver is not available. Falling back to Solver.")
 
-from simpeg.electromagnetics.utils.em1d_utils import set_mesh_1d
 from discretize import SimplexMesh
+from simpeg.electromagnetics.utils.em1d_utils import set_mesh_1d
 from simpeg.regularization.laterally_constrained import LaterallyConstrained
 
 import tools
@@ -269,11 +270,7 @@ def main(
 
     opt = simpeg.optimization.ProjectedGNCG(maxIter=miter, maxIterCG=50)
     invProb = simpeg.inverse_problem.BaseInvProblem(dmis, reg, opt)
-    beta = simpeg.directives.BetaSchedule(
-        coolingFactor=2, coolingRate=1
-    )  # TODO: Adjust cooling rate
     betaest = simpeg.directives.BetaEstimate_ByEig(beta0_ratio=1)  # TODO: Adjust beta0
-    target = simpeg.directives.TargetMisfit(chifact=1)
     precond = simpeg.directives.UpdatePreconditioner()
     save_model_dict = simpeg.directives.SaveOutputDictEveryIteration()
     save_model_dict.outDict = {}
@@ -293,9 +290,7 @@ def main(
         directiveList=[
             update_irls,
             betaest,
-            beta,
             precond,
-            # target,
             save_model_dict,
         ],
     )
