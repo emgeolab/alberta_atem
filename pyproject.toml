@@ -21,10 +21,13 @@ dependencies = [
   "rich>=15.0.0",
   "scikit-learn",
   "simpeg",
+  "tqdm>=4.70.1",
+  "verde>=1.9.0",
 ]
 
 [project.optional-dependencies]
 solver = ["pydiso"]
+vtk-export = ["vtk"]
 
 [tool.uv.sources]
 simpeg = { git = "https://github.com/simpeg/simpeg.git", rev = "em1d_stitched_v022" }

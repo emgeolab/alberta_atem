@@ -57,6 +57,7 @@ def binning(
     values = []
     values_std = []
     soundings = []
+    sizes = []
 
     # Filtering parameters
     sigma = dx / 2.0
@@ -138,6 +139,7 @@ def binning(
 
         values.append(np.array(line_values, dtype=object))
         values_std.append(np.array(line_std))
+        sizes.append(line_size)
 
     del raws
 
@@ -149,6 +151,7 @@ def binning(
         "values_std": values_std,
         "dheader": dheader,
         "picker": picker,
+        "size": sizes,
     }
 
 
@@ -205,6 +208,7 @@ def binning_normal(
     values = []
     values_std = []
     soundings = []
+    sizes = []
 
     # Filtering parameters
     window_radius = dx * 1.5  # Distance 1.1%
@@ -278,6 +282,7 @@ def binning_normal(
 
         values.append(np.array(line_values, dtype=object))
         values_std.append(np.array(line_std))
+        sizes.append(line_size)
 
     del raws
 
@@ -289,6 +294,7 @@ def binning_normal(
         "values_std": values_std,
         "dheader": dheader,
         "picker": picker,
+        "size": sizes,
     }
 
 
