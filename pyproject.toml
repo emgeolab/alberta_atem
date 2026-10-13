@@ -9,6 +9,7 @@ dependencies = [
   "cython",
   "dill",
   "geopandas>=1.1.3",
+  "gspy>=2.2.9",
   "ipywidgets",
   "jupyterlab",
   "lasio>=0.32",

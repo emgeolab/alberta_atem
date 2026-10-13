@@ -22,7 +22,9 @@ meetings/
 references/
 inv_tdem_1d_files/
 outputs/
+presentation/
 
 # Exception rules
 !data/*.json
 !data/*.out
+**/*.kml
